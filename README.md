@@ -1,3 +1,5 @@
+forked for node( 70015 )
+
 # bcwallet.rb: A stand-alone Bitcoin client within approx. 800 LOC!
 
 bcwallet.rb is an educational Bitcoin client written in Ruby language.
