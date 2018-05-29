@@ -14,11 +14,11 @@
 #
 # DO NOT SET THIS VALUE "false".
 #
-IS_TESTNET = true
+IS_TESTNET = false
 
 # Remote host to use: It is recommended to use this client with a local client.
 # Install Bitcoin-Qt and then launch with -testnet option to connect Testnet.
-HOST = 'localhost'
+HOST = '160.16.224.84'
 
 # This software is licensed under the MIT license.
 #
@@ -411,7 +411,7 @@ class Message
     if packet[:checksum] != expected_checksum
       raise 'incorrect checksum'
     end
-
+p packet[:command]
     unless @message_definitions.has_key?(packet[:command])
       raise 'invalid message type'
     end
@@ -604,7 +604,7 @@ class Message
       read_bytes(26)
       nil
     when :write
-      write_bytes([0, '00000000000000000000FFFF', '00000000', 8333].pack('QH*H*n'))
+      write_bytes([0, '00000000000000000000FFFF', '00000000', 23939].pack('QH*H*n'))
       val
     end
   end
@@ -885,7 +885,7 @@ class Network
       unless @socket
         @status = 'connection establishing ... '
 
-        @socket = TCPSocket.open(HOST, IS_TESTNET ? 18333 : 8333)
+        @socket = TCPSocket.open(HOST, IS_TESTNET ? 18333 : 23939)
 
         send_version
       end
@@ -961,7 +961,7 @@ class Network
 
   private
 
-  PROTOCOL_VERSION = 70002
+  PROTOCOL_VERSION = 70015
 
   #
   # Send version message to the remote host.
