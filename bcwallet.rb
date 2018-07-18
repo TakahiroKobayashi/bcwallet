@@ -18,7 +18,8 @@ IS_TESTNET = false
 
 # Remote host to use: It is recommended to use this client with a local client.
 # Install Bitcoin-Qt and then launch with -testnet option to connect Testnet.
-HOST = '160.16.224.84'
+#HOST = '160.16.224.84'
+HOST = '13.231.142.18'
 
 # This software is licensed under the MIT license.
 #
@@ -89,7 +90,7 @@ class Key
       break if c != 0
       res += BASE58[0]
     end
-
+p "res = #{res}"
     res.reverse
   end
 
@@ -180,6 +181,8 @@ class Key
   # Convert the private key to Bitcoin private key import format.
   #
   def to_private_key_s
+p "to_private_key_s"
+p "@key.private_key.to_s(2) = #{@key.private_key.to_s(2)}"
     Key.encode_base58check(:private_key, @key.private_key.to_s(2))
   end
 
@@ -366,8 +369,11 @@ class Message
         [:sequence, :uint32]],
       tx_out: [
         [:value, :uint64],
-        [:pk_script, :string]]
-    }
+        [:pk_script, :string]],
+    	sendheaders: [],
+			sendcmpct: [],
+			feefilter: [],
+		}
   end
 
   #
@@ -411,9 +417,8 @@ class Message
     if packet[:checksum] != expected_checksum
       raise 'incorrect checksum'
     end
-p packet[:command]
     unless @message_definitions.has_key?(packet[:command])
-      raise 'invalid message type'
+      raise 'invalid message type #{packet[:command]}'
     end
 
     deserialize(packet[:command], packet[:payload])
@@ -841,7 +846,7 @@ class Blockchain
     unless script[0, 3]  == ['76a914'].pack('H*') &&
            script[23, 2] == ['88ac'].pack('H*') &&
            script.length == 25
-      raise 'unsupported script format' 
+#      raise 'unsupported script format' 
     end
 
     script[3, 20]
@@ -994,6 +999,7 @@ class Network
   # Send filterload message.
   #
   def send_filterload
+p "filterload ->"
     hash_funcs = 10
     tweak = rand(1 << 32) - 1
 
@@ -1028,6 +1034,7 @@ class Network
   # If it receives all the blocks, it will return true. Otherwise, it returns false.
   #
   def send_getblocks
+p "getblocks ->"
     refresh_status
 
     # @blockchain.blocks.length includes block #0 while @blockchain.last_height does not.
@@ -1055,6 +1062,7 @@ class Network
   # Send getdata message for the inventory while rewriting MSG_BLOCK to MSG_FILTERED_BLOCK
   #
   def send_getdata(inventory)
+p "getdata ->"
     @message.write(@socket, {
       command: :getdata,
 
@@ -1070,6 +1078,7 @@ class Network
   # Send inv message when you created a transaction
   #
   def send_transaction_inv
+p "inv ->"
     payload = @message.serialize(@created_transaction)
 
     @created_transaction[:hash] = Key.hash256(payload)
@@ -1084,6 +1093,7 @@ class Network
   # Send transaction message you created
   #
   def send_transaction
+p "tx ->"
     @message.write(@socket, @created_transaction)
 
     @socket.flush
@@ -1102,8 +1112,9 @@ class Network
   # Returns true if the whole process has been finished, otherwise false.
   #
   def dispatch_message
+p "dispatch_message"
     message = @message.read(@socket)
-
+p "<- #{message[:command]}"
     case message[:command]
     when :version     then dispatch_version(message)
     when :ping        then dispatch_ping(message)
@@ -1111,8 +1122,16 @@ class Network
     when :merkleblock then dispatch_merkleblock(message)
     when :tx          then dispatch_tx(message)
     when :getdata     then dispatch_getdata(message)
+    when :sendheaders then dispatch_sendheaders(message)
+    when :sendcmpct   then dispatch_sendheaders(message)
+    when :feefilter   then dispatch_sendheaders(message)
     end
   end
+
+	def dispatch_sendheaders(message)
+		
+		false
+	end
 
   def dispatch_version(message)
     # This is handshake process: 
@@ -1129,14 +1148,14 @@ class Network
     @blockchain.save_data
 
     @message.write(@socket, {command: :verack})
-
+p "verack ->"
     false
   end
 
   def dispatch_ping(message)
     # Reply with pong
     @message.write(@socket, {command: :pong, nonce: message[:nonce]})
-
+p "pong ->"
     # Handshake finished, so you can do anything you want.
 
     # Set Bloom filter
@@ -1144,13 +1163,14 @@ class Network
 
     # Tell the remote host to send transactions (inv) it has in its memory pool.
     @message.write(@socket, {command: :mempool})
-
+p "mempool ->"
     # Send getblocks on demand and return true
     send_getblocks
 
   end
 
   def dispatch_inv(message)
+p "message[:inventory] = #{message[:inventory]}"
     send_getdata message[:inventory]
 
     # Memorize number of requests to check whether the client have received all transactions it required.
@@ -1394,6 +1414,7 @@ class BCWallet
     $stderr.print "Are you sure you want to export private key for \"#{name}\"? (yes/NO): "
 
     if $stdin.gets.chomp.downcase == 'yes'
+p @keys[name]
       puts @keys[name].to_private_key_s
     end
   end
